@@ -1,3 +1,10 @@
+/* Devlopped By Bueezi 
+ *  Pool Shutter management System
+ * Github : https://github.com/bueezi/pool/
+ * Contact : Discord Bueezi#3712     
+ */
+
+ 
   #include <ESP8266WiFi.h>
   #include <NTPClient.h>
   #include <WiFiUdp.h>
