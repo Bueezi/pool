@@ -2,6 +2,7 @@
   #include <NTPClient.h>
   #include <WiFiUdp.h>
   #include <RCSwitch.h>
+  #include <EEPROM.h>
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org");
 // Replace with your network credentials
@@ -14,10 +15,10 @@ WiFiServer server(80);
 String header;
 
 // Auxiliar variables to store the current output state
-String relay1State = "off";
-String relay2State = "off";
-String relay3State = "off";
-String relaysoffState = "off";
+int relay1State = 0;
+int relay2State = 0;
+int relay3State = 0;
+int relaysoffState = 0;
 
 
 int virtual1State = 0;
@@ -40,7 +41,7 @@ int ondebleu = 1394004;
 int ondeblanche = 1397076;
 int ondenoir = 1397844;
 int ondelampe = 1398036;
-
+int rfpin = 14;
 
 
 
@@ -66,16 +67,33 @@ const int relay1 = 5; // GPIO5 D1
 const int relay2 = 4; // GPIO4 D2
 const int relay3 = 16;
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  
   RF.enableReceive(14); // PIN du receiver RF
   // Initialize the output variables as outputs
   pinMode(relay1, OUTPUT);
   pinMode(relay2, OUTPUT);
   pinMode(relay3, OUTPUT);
   // Set outputs to HIGH. relay active LOW
-  digitalWrite(relay1, HIGH);
-  digitalWrite(relay2, HIGH);
-  digitalWrite(relay3, HIGH);
+  
+  // last states 
+  EEPROM.begin(4);//begin eeprom communication 4values
+  relay1State = EEPROM.read(1);
+  virtual1State = EEPROM.read(1);
+  relay2State = EEPROM.read(2);
+  virtual2State = EEPROM.read(2);
+  relay3State = EEPROM.read(3);
+  relay3wantState = EEPROM.read(3);
+  relaysoffState = EEPROM.read(4);
+  Serial.println(EEPROM.read(1));
+  Serial.println(EEPROM.read(2));
+  Serial.println(EEPROM.read(3));
+  Serial.println(EEPROM.read(4));
+  digitalWrite(relay1, EEPROM.read(1));
+  digitalWrite(relay2, EEPROM.read(2));
+  digitalWrite(relay3, EEPROM.read(3));
+
+
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -97,10 +115,14 @@ void loop(){
   //WIFI reset
   currentCounter = millis();
   if (interval2 > 70000){
-    interval2 = 5;
-    WiFi.disconnect();
-    WiFi.begin(ssid, password);
-    Serial.println("restarting the wifi");
+    Serial.println(relay1State);
+    EEPROM.write(1, relay1State); 
+    EEPROM.write(2, relay2State); 
+    EEPROM.write(3, relay3State); 
+    EEPROM.write(4, relaysoffState);
+    EEPROM.commit();
+    Serial.println("suicide");
+    ESP.reset();
   }
   interval = currentCounter - previousCounter;
   interval2 = interval2 + interval;
@@ -139,15 +161,12 @@ void loop(){
    }
   if (onderf == ondelampe){
     Serial.println("onde lampe recue");
-    if (relay3State == "on"){
-      Serial.println("hello");
+    if (relay3State == 1){
       relay3wantState = 0;
-      virtual3State = 0;
       delay(500);
     }
     else{
       relay3wantState = 1;
-      virtual3State = 1;
       delay(500);
     }
    }
@@ -166,21 +185,21 @@ void loop(){
   // Bleu
   if (relay1wantState > 0) {
     relay1wantState = 0;
-    if (relay2State == "off") {
-    relaysoffState = "off";
-    relay1State = "on";
+    if (relay2State == 0) {
+    relaysoffState = 0;
+    relay1State = 1;
     Serial.println("relay 2 was off putting relay 1 on");
-    digitalWrite(relay1, LOW);
+    digitalWrite(relay1, 1); 
      }
 
-  else if (relay2State == "on") {
+  else if (relay2State > 0) {
     Serial.println("relay 2 was on putting hem off delaying 1000ms and putting relay 1 on");
-    relay2State = "off";
-    relaysoffState = "off";
-    relay1State = "on";
-    digitalWrite(relay2, HIGH);
+    relay2State = 0;
+    relaysoffState = 0;
+    relay1State = 1;
+    digitalWrite(relay2, 0);
     delay(1000);
-    digitalWrite(relay1, LOW);
+    digitalWrite(relay1, 1);
               }
               
 
@@ -191,24 +210,22 @@ void loop(){
            // Noir 
   if (relay2wantState > 0) {
     relay2wantState = 0;
-    if (relay1State == "off") {
+    if (relay1State < 1) {
       Serial.println("relay 1 was off putting relay 2 on");
-      relay2State = "on";
-      relaysoffState = "off";
-      digitalWrite(relay2, LOW);
+      relay2State = 1;
+      relaysoffState = 0;
+      digitalWrite(relay2, 1);
                 }
 
 
-    else if (relay1State == "on") {
+    else if (relay1State > 0) {
       Serial.println("relay 1 was on putting hem off delaying 1000ms and putting relay 2 on");
-      relay1State = "off";
-      relaysoffState = "off";
-      relay2State = "on";
-      digitalWrite(relay1, HIGH);
+      relay1State = 0;
+      relaysoffState = 0;
+      relay2State = 1;
+      digitalWrite(relay1, 0);
       delay(1000);
-      relay3State = "off";
-      digitalWrite(relay3, HIGH);
-      digitalWrite(relay2, LOW);
+      digitalWrite(relay2, 1);
 
               }
             }
@@ -217,11 +234,11 @@ void loop(){
   if (relayswantoffState > 0) {
     relayswantoffState = 0;
     Serial.println("putting relays off");
-    relay1State = "off";
-    relay2State = "off";
-    relaysoffState = "on";
-    digitalWrite(relay1, HIGH);
-    digitalWrite(relay2, HIGH);
+    relay1State = 0;
+    relay2State = 0;
+    relaysoffState = 1;
+    digitalWrite(relay1, 0);
+    digitalWrite(relay2, 0);
 
             }
 
@@ -231,13 +248,14 @@ void loop(){
 
   //lampe
   if (relay3wantState > 0) {
-    relay3State = "on";
-    digitalWrite(relay3, LOW);
-    
+    relay3State = 1;
+    digitalWrite(relay3, 1);
+    virtual3State = 1;
   }
-  if (relay3wantState == 0) {
-    relay3State = "off";
-    digitalWrite(relay3, HIGH);
+  if (relay3wantState < 1) {
+    relay3State = 0;
+    digitalWrite(relay3, 0);
+    virtual3State = 0;
     
   }
 
