@@ -6,8 +6,8 @@
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org");
 // Replace with your network credentials
-const char* ssid = "phi-rika"; // Input your wifi network name
-const char* password = "cafedelapompe"; // Input your wifi password
+const char* ssid = ""; // Input your wifi network name
+const char* password = ""; // Input your wifi password
 
 // Set web server port number to 80
 WiFiServer server(80);
