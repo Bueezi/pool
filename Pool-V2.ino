@@ -1,6 +1,6 @@
 #include <ESP8266WiFi.h>
 
-// Wiifii Info
+// Wifi Info
 const char* ssid     = ""; // Enter your WIFI name
 const char* password = ""; // Enter your WIFI password
  
@@ -10,18 +10,16 @@ WiFiServer server(80);
 // Variable to store the HTTP request
 String header;
  
-// Auxiliar variables to store the current output state
-String output1State = "off";
- 
 // Assign output variables to GPIO pins
-const int relay1 = 15; // GPIO15
-const int relay2 = 2; // GPIO2
-const int relay3 = 0; // GPIO0
+const int relay1 = 5; // GPIO5 D1
+const int relay2 = 4; // GPIO4 D2
+const int relay3 = 16;
 
 int relay1State = 0;
 int relay2State = 0;
 int relay3State = 0;
 int relaysoffState = 0;
+int laston = 0;
  
 // Current time
 unsigned long currentTime = millis();
@@ -36,10 +34,10 @@ void setup() {
   pinMode(relay2, OUTPUT);
   pinMode(relay3, OUTPUT);
  
-  // Set outputs to LOW
-  digitalWrite(relay1, HIGH);
-  digitalWrite(relay1, HIGH);
-  digitalWrite(relay1, HIGH);
+  // Set outputs to LOW       1 = off   0 = on
+  digitalWrite(relay1, 1);
+  digitalWrite(relay2, 1);
+  digitalWrite(relay3, 1);
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -57,7 +55,20 @@ void setup() {
 }
  
 void loop() {
+  currentTime = millis();
+  if (currentTime - laston > 120000) {
+    if (laston > 1){
+      laston = 0;
+      Serial.println("120s passed neutre");
+      digitalWrite(relay1, 1);
+      relay1State = 0; 
+      digitalWrite(relay2, 1);
+      relay2State = 0;
+      relaysoffState = 1;
+    }
+  }
   delay(200); // Prevent overheating
+  
   WiFiClient client = server.available();   // Listen for incoming clients
  
   if (client) {                             // If a new client connects,
@@ -109,31 +120,35 @@ void loop() {
             client.println("</style></head>");
 
 
+            client.println("<body>");
+           
+            // Web Page Heading
 
-                          // if they go on /var of the site then putting the var to 1
+            
+               // Condtions
             if (header.indexOf("GET /bleu") >= 0) {
               Serial.println("bleu");
-              digitalWrite(relay2, HIGH);
+              digitalWrite(relay2, 1);
               relay2State = 0;
               relaysoffState = 0;
-
-              digitalWrite(relay1, LOW);
+              digitalWrite(relay1, 0);
               relay1State = 1; 
+              laston = millis();
             }
             else if (header.indexOf("GET /noir") >= 0) {
               Serial.println("noir");
-              digitalWrite(relay1, HIGH);
+              digitalWrite(relay1, 1);
               relay1State = 0;
               relaysoffState = 0;
-
-              digitalWrite(relay2, LOW);
+              digitalWrite(relay2, 0);
               relay2State = 1; 
+              laston = millis();
             }
             else if (header.indexOf("GET /neutre") >= 0) {
               Serial.println("neutre");
-              digitalWrite(relay1, HIGH);
+              digitalWrite(relay1, 1);
               relay1State = 0; 
-              digitalWrite(relay2, HIGH);
+              digitalWrite(relay2, 1);
               relay2State = 0;
               relaysoffState = 1;
             }
@@ -141,69 +156,47 @@ void loop() {
             else if (header.indexOf("GET /lampe/alumme") >= 0) {
               Serial.println("lampe-alumme");
               relay3State = 1;
-              digitalWrite(relay3, LOW);
+              digitalWrite(relay3, 0);
             }
             else if (header.indexOf("GET /lampe/eteint") >= 0) {
               Serial.println("lampe-eteinte");
               relay3State = 0;
-              digitalWrite(relay3, HIGH);
+              digitalWrite(relay3, 1);
             }
 
 
             
-            // Web Page Heading
-            //client.println("<body><h1 class=\"titre\" >Piscine</h1>");
-
-            // Display current state, and ON/OFF buttons for GPIO 5
-            client.println("<div id=\"container\">");
             // If the relay1State is off, it displays the ON button
             if (relay1State < 1) {
               client.println("<a href=\"/bleu\"><button class=\"button\"></button></a></p>");
             } else {
               client.println("<a href=\"/bleu\"><button class=\"button button\">-></button></a></p>");
             }
-            client.println("</div>");
-
-
-
+           
 
             
-            client.println("<div id=\"container\">");
             if (relaysoffState < 1) {
               client.println("<a href=\"/neutre\"><button class=\"button3\"></button></a></p>");
             } else {
               client.println("<a href=\"/neutre\"><button class=\"button3\">-></button></a></p>");
             }
-            client.println("</div>");
 
 
-
-            client.println("<div id=\"container\">");
             if (relay3State < 1) {
               client.println("<a href=\"/lampe/alumme\"><button class=\"blampeeteint\"></button></a></p>");
             } else {
               client.println("<a href=\"/lampe/eteint\"><button class=\"blampealumme\"></button></a></p>");
             }
-            client.println("</div>");
 
 
-
-
-
-
-            
-            
-            // Display current state, and ON/OFF buttons for GPIO 4
-            client.println("<div id=\"container\">");
-            // If the relay2State is off, it displays the ON button
             if (relay2State < 1) {
               client.println("<a href=\"/noir\"><button class=\"button2\"></button></a></p>");
             } else {
               client.println("<a href=\"/noir\"><button class=\"button button2\">-></button></a></p>");
             }
-            client.println("</div>");
 
-  
+
+
 
             client.println("</body></html>");
  
